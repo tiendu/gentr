@@ -6,37 +6,39 @@ import (
     "strings"
 )
 
-// FilterLogs processes CSV formatted log data.
-// It expects each CSV record to have at least three fields:
-//   - Field 0: event type ("signal" or "exit")
-//   - Field 1: code (signal number or exit code)
-//   - Field 2: process name (or identifier)
-// Example CSV row: signal,9,processName
+// FilterLogs processes the command output, expecting structured logs that are pipe-separated.
+// If the output is not structured as expected, it prints the output as-is.
 func FilterLogs(input string) {
-    // Create a new CSV reader from the input string.
-    reader := csv.NewReader(strings.NewReader(input))
-    records, err := reader.ReadAll()
-    if err != nil {
-        fmt.Println("Error reading CSV:", err)
-        return
-    }
-
-    // Process each record.
-    for _, record := range records {
-        // Ensure we have at least three fields.
-        if len(record) < 3 {
-            fmt.Println("Incomplete record:", record)
+    lines := strings.Split(input, "\n")
+    for _, line := range lines {
+        line = strings.TrimSpace(line)
+        if line == "" {
             continue
         }
-        eventType, code, procName := record[0], record[1], record[2]
-        switch eventType {
-        case "signal":
-            fmt.Printf("%s terminated by signal %s\n", procName, code)
-        case "exit":
-            fmt.Printf("%s returned exit code %s\n", procName, code)
-        default:
-            // For any other event types, print the record as is.
-            fmt.Println(record)
+        // Look for a pipe-separated structured log.
+        if strings.Contains(line, "|") {
+            reader := csv.NewReader(strings.NewReader(line))
+            reader.Comma = '|'
+            records, err := reader.ReadAll()
+            if err == nil && len(records) > 0 && len(records[0]) >= 3 {
+                eventType := records[0][0]
+                code := records[0][1]
+                cmdName := records[0][2]
+                switch eventType {
+                case "exit":
+                    fmt.Printf("Command '%s' returned exit code %s\n", cmdName, code)
+                case "signal":
+                    fmt.Printf("Command '%s' terminated by signal %s\n", cmdName, code)
+                default:
+                    fmt.Println(line)
+                }
+            } else {
+                // Fallback: print the line.
+                fmt.Println(line)
+            }
+        } else {
+            // For plain text output.
+            fmt.Println(line)
         }
     }
 }
