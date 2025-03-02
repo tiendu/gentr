@@ -4,7 +4,10 @@ import (
     "bufio"
     "fmt"
     "os"
+    "os/signal"
     "strings"
+    "syscall"
+
     "gentr/cmd"
     "gentr/internal"
 )
@@ -12,40 +15,57 @@ import (
 func main() {
     // Parse CLI flags/options.
     options := cmd.ParseOptions()
-    fmt.Println("Starting gentr with options:", options)
+    fmt.Println("Starting with options:", options)
+
+    // Check for administrative subcommands.
+    args := cmd.GetCommandArgs()
+    if len(args) > 0 {
+        switch strings.ToLower(args[0]) {
+        case "version":
+            cmd.VersionCommand()
+            return
+        case "bump":
+            if newVer, err := cmd.BumpVersion(); err != nil {
+                fmt.Fprintln(os.Stderr, "Error bumping version:", err)
+            } else {
+                fmt.Println("New version:", newVer)
+            }
+            return
+        }
+    }
 
     // Read file list from STDIN.
     scanner := bufio.NewScanner(os.Stdin)
-    var files []string
+    var paths []string
     for scanner.Scan() {
         line := strings.TrimSpace(scanner.Text())
         if line != "" {
-            files = append(files, line)
+            paths = append(paths, line)
         }
     }
     if err := scanner.Err(); err != nil {
-        fmt.Fprintln(os.Stderr, "Error reading files:", err)
+        fmt.Fprintln(os.Stderr, "Error reading file list:", err)
         os.Exit(1)
     }
-    if len(files) == 0 {
+    if len(paths) == 0 {
         fmt.Fprintln(os.Stderr, "No files provided via STDIN")
         os.Exit(1)
     }
 
-    // Retrieve the command to execute from the remaining arguments.
-    // This assumes cmd.ParseOptions() has consumed the flags.
-    commandArgs := cmd.GetCommandArgs()
-    if len(commandArgs) == 0 {
+    // The remaining command-line arguments form the command to execute.
+    if len(args) == 0 {
         fmt.Fprintln(os.Stderr, "No command provided to execute")
         os.Exit(1)
     }
-    command := strings.Join(commandArgs, " ")
+    command := strings.Join(args, " ")
 
-    // Start watching files; when a change is detected, run the command.
-    // WatchFiles is updated to accept a command parameter.
-    go internal.WatchFiles(files, command)
+    // Start watching files concurrently with debounce and recursive scanning.
+    go internal.WatchFiles(paths, command, options)
 
-    // Block forever (or until a signal is received).
-    select {}
+    // Setup graceful shutdown on SIGINT/SIGTERM.
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+    <-sigChan
+    fmt.Println("\nShutting down gentr...")
 }
 

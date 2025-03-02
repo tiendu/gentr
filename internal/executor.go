@@ -3,20 +3,36 @@ package internal
 import (
     "fmt"
     "os/exec"
+    "strings"
+    "syscall"
 )
 
 // RunCommand executes the provided shell command using "sh -c".
-// It prints the combined output or an error if it occurs.
-func RunCommand(command string) string {
-    // Use "sh -c" so that the entire command string is interpreted by the shell.
+// substituting "/_" with the changed file name.
+// It returns the raw output along with a structured status log (pipe-separated).
+func RunCommand(command, file string) string {
+    // Substitute the placeholder if present.
+    if strings.Contains(command, "/_") {
+        command = strings.ReplaceAll(command, "/_", file)
+    }
     cmd := exec.Command("sh", "-c", command)
     out, err := cmd.CombinedOutput()
+    exitCode := 0
     if err != nil {
-        fmt.Println("Error running command:", err)
-        return ""
+        if exitError, ok := err.(*exec.ExitError); ok {
+            if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
+                exitCode = status.ExitStatus()
+            }
+        } else {
+            fmt.Println("Error running command:", err)
+            return ""
+        }
     }
-    output := string(out)
-    fmt.Println("Command Output:", output)
-    return output
+    statusLog := fmt.Sprintf("exit|%d|%s", exitCode, command)
+    fmt.Println("Command Output:")
+    fmt.Println(string(out))
+    fmt.Println("Status Log:")
+    fmt.Println(statusLog)
+    combined := strings.Join([]string{string(out), statusLog}, "\n")
+    return combined
 }
-

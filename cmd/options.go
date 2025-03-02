@@ -9,22 +9,27 @@ import (
 var VersionStr = "0.1.0"
 var RevisionStr = "unknown"
 
-// ParseOptions handles command-line flags for runtime options.
-func ParseOptions() map[string]interface{} {
-    // Define flags.
-    debug := flag.Bool("debug", false, "Enable debug mode")
-    recursive := flag.Bool("recursive", false, "Watch directories recursively")
-    // Additional flags can be defined here.
+// Options holds command-line flag settings.
+type Options struct {
+    Debug     bool
+    Recursive bool
+}
 
+// String implements the Stringer interface for pretty-printing.
+func (o Options) String() string {
+    return fmt.Sprintf("--debug %t; --recursive %t", o.Debug, o.Recursive)
+}
+
+// ParseOptions parses command-line flags and returns an Options struct.
+func ParseOptions() Options {
+    var opts Options
+    flag.BoolVar(&opts.Debug, "debug", false, "Enable debug mode")
+    flag.BoolVar(&opts.Recursive, "recursive", false, "Watch directories recursively")
     flag.Parse()
-    return map[string]interface{}{
-        "debug":     *debug,
-        "recursive": *recursive,
-    }
+    return opts
 }
 
 // GetCommandArgs returns the remaining non-flag arguments.
-// These are interpreted as the command to execute when a file change is detected.
 func GetCommandArgs() []string {
     return flag.Args()
 }
