@@ -11,22 +11,24 @@ var RevisionStr = "unknown"
 
 // Options holds command-line flag settings.
 type Options struct {
-    Debug     bool
-    Recursive bool
+	Debug     bool
+	Recursive bool
+	Input     string
 }
 
 // String implements the Stringer interface for pretty-printing.
 func (o Options) String() string {
-    return fmt.Sprintf("--debug %t; --recursive %t", o.Debug, o.Recursive)
+	return fmt.Sprintf("--debug %t; --recursive %t; --input %s", o.Debug, o.Recursive, o.Input)
 }
 
 // ParseOptions parses command-line flags and returns an Options struct.
 func ParseOptions() Options {
-    var opts Options
-    flag.BoolVar(&opts.Debug, "debug", false, "Enable debug mode")
-    flag.BoolVar(&opts.Recursive, "recursive", false, "Watch directories recursively")
-    flag.Parse()
-    return opts
+	var opts Options
+	flag.BoolVar(&opts.Debug, "debug", false, "Enable debug mode")
+	flag.BoolVar(&opts.Recursive, "recursive", false, "Watch directories recursively")
+	flag.StringVar(&opts.Input, "input", ".", "Input directory, file, or glob pattern (e.g., '.', 'logs/*.log')")
+	flag.Parse()
+	return opts
 }
 
 // GetCommandArgs returns the remaining non-flag arguments.
