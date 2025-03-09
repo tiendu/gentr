@@ -8,6 +8,7 @@ import (
     "time"
 
     "gentr/cmd"
+    "gentr/internal/beautify"
 )
 
 // debounceDuration is the delay to wait after the last change before executing the command.
@@ -96,7 +97,9 @@ func WatchFiles(paths []string, command string, opts cmd.Options) {
         changedFile := <-changeChan
         timer := time.NewTimer(debounceDuration)
         <-timer.C
-        fmt.Printf("Change detected in file: %s. Executing command...\n", changedFile)
+        // Enhanced message with color and bold formatting.
+        message := beautify.Bold(beautify.Color(fmt.Sprintf("Change detected in file: %s. Executing command...", changedFile), "cyan"))
+        fmt.Println(message)
         output := RunCommand(command, changedFile)
         FilterLogs(output)
     }

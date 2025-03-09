@@ -29,10 +29,6 @@ func RunCommand(command, file string) string {
         }
     }
     statusLog := fmt.Sprintf("exit|%d|%s", exitCode, command)
-    fmt.Println("Command Output:")
-    fmt.Println(string(out))
-    fmt.Println("Status Log:")
-    fmt.Println(statusLog)
-    combined := strings.Join([]string{string(out), statusLog}, "\n")
+    combined := fmt.Sprintf("%s\n----\n%s", string(out), statusLog)
     return combined
 }
