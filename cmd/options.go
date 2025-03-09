@@ -3,6 +3,8 @@ package cmd
 import (
     "flag"
     "fmt"
+
+    "gentr/internal/beautify"
 )
 
 // VersionStr and RevisionStr can be set at build time.
@@ -11,24 +13,48 @@ var RevisionStr = "unknown"
 
 // Options holds command-line flag settings.
 type Options struct {
-	Debug     bool
-	Recursive bool
-	Input     string
+    Debug     bool
+    Recursive bool
+    Input     string
 }
 
-// String implements the Stringer interface for pretty-printing.
+// String implements the Stringer interface for pretty-printing the options with enhanced formatting.
 func (o Options) String() string {
-	return fmt.Sprintf("--debug %t; --recursive %t; --input %s", o.Debug, o.Recursive, o.Input)
+    var debugVal, recursiveVal string
+    if o.Debug {
+        debugVal = beautify.Highlight("true", "white", "green")
+    } else {
+        debugVal = beautify.Highlight("false", "white", "red")
+    }
+    if o.Recursive {
+        recursiveVal = beautify.Highlight("true", "white", "green")
+    } else {
+        recursiveVal = beautify.Highlight("false", "white", "red")
+    }
+    // For input, we just color it normally (or you can also choose to highlight).
+    inputVal := beautify.Bold(beautify.Color(o.Input, "cyan"))
+    return fmt.Sprintf("--debug %s; --recursive %s; --input %s", debugVal, recursiveVal, inputVal)
 }
 
 // ParseOptions parses command-line flags and returns an Options struct.
+// It supports both long and short flag names.
 func ParseOptions() Options {
-	var opts Options
-	flag.BoolVar(&opts.Debug, "debug", false, "Enable debug mode")
-	flag.BoolVar(&opts.Recursive, "recursive", false, "Watch directories recursively")
-	flag.StringVar(&opts.Input, "input", ".", "Input directory, file, or glob pattern (e.g., '.', 'logs/*.log')")
-	flag.Parse()
-	return opts
+    var opts Options
+
+    // Boolean flags for debug.
+    flag.BoolVar(&opts.Debug, "debug", false, "Enable debug mode")
+    flag.BoolVar(&opts.Debug, "d", false, "Enable debug mode (short)")
+
+    // Boolean flags for recursive.
+    flag.BoolVar(&opts.Recursive, "recursive", false, "Watch directories recursively")
+    flag.BoolVar(&opts.Recursive, "r", false, "Watch directories recursively (short)")
+
+    // String flags for input.
+    flag.StringVar(&opts.Input, "input", ".", "Input directory, file, or glob pattern (e.g., '.', 'logs/*.log')")
+    flag.StringVar(&opts.Input, "i", ".", "Input directory, file, or glob pattern (short)")
+
+    flag.Parse()
+    return opts
 }
 
 // GetCommandArgs returns the remaining non-flag arguments.
