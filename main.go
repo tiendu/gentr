@@ -12,7 +12,42 @@ import (
 )
 
 func main() {
-    // Parse CLI flags/options.
+    if len(os.Args) < 2 {
+        cmd.HelpCommand()
+        os.Exit(0)
+    }
+
+    // Get the first argument.
+    args := os.Args[1:]
+
+    // Handle different subcommands
+    switch args[0] {
+    case "install":
+        cmd.InstallCommand()
+        return
+    case "reinstall":
+        cmd.ReinstallCommand()
+        return
+    case "uninstall":
+        cmd.UninstallCommand()
+        return
+    case "bump":
+        if newVersion, err := cmd.BumpVersion(); err != nil {
+            fmt.Printf("Version bump failed: %v\n", err)
+        } else {
+            fmt.Printf("New version: %s\n", newVersion)
+        }
+        return
+    case "help", "--help", "-h":
+        cmd.HelpCommand()
+        os.Exit(0)
+    default:
+        // If an unknown command is provided, show help.
+        cmd.HelpCommand()
+        os.Exit(1)
+    }
+
+    // Parse the flags/options
     opts := cmd.ParseOptions()
     fmt.Println("Starting with options:", opts)
 
@@ -38,12 +73,12 @@ func main() {
     }
 
     // Get the command to execute.
-    args := cmd.GetCommandArgs()
-    if len(args) == 0 {
+    commandArgs := cmd.GetCommandArgs()
+    if len(commandArgs) == 0 {
         fmt.Fprintln(os.Stderr, "No command provided to execute")
         os.Exit(1)
     }
-    command := strings.Join(args, " ")
+    command := strings.Join(commandArgs, " ")
 
     // Start watching files.
     go internal.WatchFiles(files, command, opts)

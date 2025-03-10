@@ -3,6 +3,10 @@ package cmd
 import (
     "flag"
     "fmt"
+    "io"
+    "os"
+    "os/exec"
+    "path/filepath"
 
     "gentr/internal/beautify"
 )
@@ -72,8 +76,110 @@ func GetCommandArgs() []string {
     return flag.Args()
 }
 
+// HelpCommand displays the usage and available commands/options.
+func HelpCommand() {
+    fmt.Println(`Usage: gentr <command> [options]
+
+Commands:
+  install      Install this tool as a system command
+  reinstall    Uninstall and then reinstall the tool
+  uninstall    Remove the installed tool
+  version      Print version information
+  bump         Bump the version automatically
+  help         Display this help message
+
+Options:
+  --debug, -d
+       Enable debug mode (Displays verbose output during execution)
+
+  --recursive, -r
+       Watch directories recursively. When enabled, gentr traverses directories and watches all files found.
+
+  --length, -l
+       Limit the number of output lines to this length. If set, only the most recent lines of output will be displayed.
+
+  --input, -i
+       Input directory, file, or glob pattern (e.g., '.', 'logs/*.log'). Specifies the files or directories to monitor for changes.
+       Example: gentr --input 'logs/*.log' --recursive
+
+  INSTALL_PATH
+       Override the default installation path (e.g., '/usr/local/bin')
+       Example: INSTALL_PATH=/usr/local/bin gentr install`)
+}
+
+// InstallCommand installs this binary to a specific directory
+func InstallCommand() {
+    appFilePath, err := os.Executable()
+    if err != nil {
+        fmt.Printf("Error determining executable path: %v\n", err)
+        return
+    }
+
+    dest, err := installSubCmd(appFilePath, "entr")
+    if err != nil {
+        fmt.Printf("Install failed, err=%v\n", err)
+    } else {
+        fmt.Printf("Installed entr to %s\n", dest)
+    }
+}
+
+// installSubCmd copies the current binary to a desired installation path.
+func installSubCmd(appFilePath, subCmd string) (string, error) {
+    // Allow override of installation path using an environment variable
+    execPath := os.Getenv("INSTALL_PATH")
+    if execPath == "" {
+        execPath = "/usr/local/bin" // Default path if not set.
+    }
+
+    destPath := filepath.Join(execPath, subCmd)
+
+    // Ensure the exec directory exists.
+    if _, err := os.Stat(execPath); os.IsNotExist(err) {
+        if err := os.MkdirAll(execPath, 0755); err != nil {
+            return "", fmt.Errorf("failed to create directory %s: %v", execPath, err)
+        }
+    }
+
+    srcFile, err := os.Open(appFilePath)
+    if err != nil {
+        return "", err
+    }
+    defer srcFile.Close()
+
+    destFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY, 0755)
+    if err != nil {
+        return "", err
+    }
+    defer destFile.Close()
+
+    if _, err := io.Copy(destFile, srcFile); err != nil {
+        return "", err
+    }
+    return destPath, nil
+}
+
+// UninstallCommand removes the installed Git subcommand (entr).
+func UninstallCommand() {
+    path, err := exec.LookPath("entr")
+    if err != nil {
+        fmt.Printf("entr not found in PATH, nothing to uninstall.\n")
+        return
+    }
+    if err := os.Remove(path); err != nil {
+        fmt.Printf("Uninstall failed: %v\n", err)
+        return
+    }
+    fmt.Printf("Uninstalled entr from %s\n", path)
+}
+
+// ReinstallCommand uninstalls and then reinstalls the tool.
+func ReinstallCommand() {
+    UninstallCommand()
+    InstallCommand()
+}
+
 // VersionCommand prints version information.
 func VersionCommand() {
-    fmt.Printf("gentr version %s, build revision %s\n", VersionStr, RevisionStr)
+    fmt.Printf("entr version %s, build revision %s\n", VersionStr, RevisionStr)
 }
 
