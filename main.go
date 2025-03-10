@@ -31,6 +31,9 @@ func main() {
     case "uninstall":
         cmd.UninstallCommand()
         return
+    case "version":
+        cmd.VersionCommand()
+        return
     case "bump":
         if newVersion, err := cmd.BumpVersion(); err != nil {
             fmt.Printf("Version bump failed: %v\n", err)
