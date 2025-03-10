@@ -101,7 +101,7 @@ func WatchFiles(paths []string, command string, opts cmd.Options) {
         message := beautify.Bold(beautify.Color(fmt.Sprintf("Change detected in file: %s. Executing command...", changedFile), "cyan"))
         fmt.Println(message)
         output := RunCommand(command, changedFile)
-        FilterLogs(output)
+        FilterLogs(output, opts)
     }
     // Note: wg.Wait() is unreachable because of the infinite loop.
 }

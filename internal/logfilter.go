@@ -5,6 +5,7 @@ import (
     "fmt"
     "strings"
 
+    "gentr/cmd"
     "gentr/internal/beautify"
 )
 
@@ -19,7 +20,7 @@ func truncateLine(line string, maxLen int) string {
 // FilterLogs processes the combined command output and status log.
 // It splits the output (separated by a delimiter) and prints the parts with enhanced formatting.
 // Highlight is used to emphasize the command name.
-func FilterLogs(input string) {
+func FilterLogs(input string, opts cmd.Options) {
     // Split the input by the delimiter we defined in RunCommand.
     parts := strings.Split(input, "\n----\n")
     if len(parts) != 2 {
@@ -32,10 +33,11 @@ func FilterLogs(input string) {
 
     // Process raw command output:
     rawLines := strings.Split(rawOutput, "\n")
-    if len(rawLines) > 6 {
-        rawLines = append([]string{"..."}, rawLines[len(rawLines)-6:]...)
+    if opts.Length > 0 {
+        if len(rawLines) > opts.Length {
+            rawLines = append([]string{"..."}, rawLines[len(rawLines)-opts.Length+1:]...)
+        }
     }
-
     // Truncate each line to 60 characters.
     for i, line := range rawLines {
         rawLines[i] = truncateLine(line, 60)
