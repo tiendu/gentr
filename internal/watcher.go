@@ -3,7 +3,6 @@ package internal
 import (
     "fmt"
     "os"
-    "path/filepath"
     "sync"
     "time"
 
@@ -16,38 +15,8 @@ var debounceDuration = 500 * time.Millisecond
 
 // WatchFiles watches the given paths and triggers the specified command when a change is detected.
 // If opts.Recursive is true, directories are scanned recursively.
-func WatchFiles(paths []string, command string, opts cmd.Options) {
-    // Expand provided paths.
-    var files []string
-    for _, path := range paths {
-        info, err := os.Stat(path)
-        if err != nil {
-            fmt.Printf("Error accessing %s: %v\n", path, err)
-            continue
-        }
-        if info.IsDir() {
-            if opts.Recursive {
-                err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-                    if err != nil {
-                        return err
-                    }
-                    if !info.IsDir() {
-                        files = append(files, p)
-                    }
-                    return nil
-                })
-                if err != nil {
-                    fmt.Printf("Error walking directory %s: %v\n", path, err)
-                }
-            } else {
-                // Without recursive, add the directory itself.
-                files = append(files, path)
-            }
-        } else {
-            files = append(files, path)
-        }
-    }
-
+// It sends "pause" and "resume" commands on the spinnerControl channel to control the spinner.
+func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl chan string) {
     // Map to track the last modification time of each file.
     modTimes := make(map[string]time.Time)
     for _, file := range files {
@@ -95,13 +64,23 @@ func WatchFiles(paths []string, command string, opts cmd.Options) {
     // Debounce change events.
     for {
         changedFile := <-changeChan
+        // Pause the spinner.
+        select {
+        case spinnerControl <- "pause":
+        default:
+        }
         timer := time.NewTimer(debounceDuration)
         <-timer.C
         // Enhanced message with color and bold formatting.
-        message := beautify.Bold(beautify.Color(fmt.Sprintf("Change detected in file: %s. Executing command...", changedFile), "cyan"))
+        message := beautify.Bold(beautify.Color(fmt.Sprintf("\nChange detected in file: %s. Executing command...", changedFile), "cyan"))
         fmt.Println(message)
         output := RunCommand(command, changedFile)
         FilterLogs(output, opts)
+        // Resume the spinner.
+        select {
+        case spinnerControl <- "resume":
+        default:
+        }
     }
     // Note: wg.Wait() is unreachable because of the infinite loop.
 }
