@@ -79,12 +79,13 @@ func main() {
     }
     command := strings.Join(commandArgs, " ")
 
-    // Start the spinner in a separate goroutine.
+    // Create a spinner control channel.
+    spinnerControl := make(chan string, 1)
     spinnerDone := make(chan struct{})
-    go cmd.BounceSpinner(spinnerDone)
+    go cmd.BounceSpinner(spinnerDone, spinnerControl)
 
-    // Start watching files.
-    go internal.WatchFiles(files, command, opts)
+    // Start watching files, passing the spinnerControl channel.
+    go internal.WatchFiles(files, command, opts, spinnerControl)
 
     // Setup graceful shutdown on SIGINT/SIGTERM.
     sigChan := make(chan os.Signal, 1)

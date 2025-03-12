@@ -4,12 +4,9 @@ import (
     "fmt"
     "strings"
     "time"
-
-    "gentr/internal/beautify"
 )
 
 // generateGradient produces a slice of ANSI 256 color codes forming a gradient.
-// It starts from startColor and subtracts a fixed decrement for each step, for steps elements.
 func generateGradient(startColor int, steps int) []int {
     gradient := make([]int, steps)
     current := startColor
@@ -17,10 +14,11 @@ func generateGradient(startColor int, steps int) []int {
     for i := 0; i < steps; i++ {
         gradient[i] = current
         current -= decrement
-        if current < 16 {  // Avoid going too dark
+        if current < 16 { // Avoid going too dark.
             current = 16
         }
     }
+    // Reverse the gradient so that the tail closest to the head is brightest.
     for i, j := 0, len(gradient)-1; i < j; i, j = i+1, j-1 {
         gradient[i], gradient[j] = gradient[j], gradient[i]
     }
@@ -28,10 +26,12 @@ func generateGradient(startColor int, steps int) []int {
 }
 
 // BounceSpinner displays a bouncing snake animation with a fading tail using gradient colors.
-// The snake moves horizontally across a fixed-width line and bounces back when it reaches the boundaries.
-func BounceSpinner(done chan struct{}) {
-    width := 30  // Total width of the output line.
-    snakeLength := 5  // Number of blocks in the snake.
+func BounceSpinner(done chan struct{}, control chan string) {
+    width := 30         // Total width of the output line.
+    snakeLength := 5    // Number of blocks in the snake.
+
+    // ANSI color format string.
+    const colorFormat = "\033[38;5;%dm%s\033[0m"
 
     // Initialize snake positions: starting at the left.
     snake := make([]int, snakeLength)
@@ -42,6 +42,8 @@ func BounceSpinner(done chan struct{}) {
     direction := 1  // 1 means moving right; -1 means moving left.
     leftBoundary := 0
     rightBoundary := width - 1
+
+    paused := false
 
     // Define the starting color for the tail gradient.
     startColor := 81  // A shade in the blue/cyan range.
@@ -55,26 +57,29 @@ func BounceSpinner(done chan struct{}) {
             fmt.Print("\r" + strings.Repeat(" ", width) + "\r")
             return
         default:
+            if paused {
+                time.Sleep(100 * time.Millisecond)
+                continue
+            }
             // Create a slice for the current frame.
             line := make([]string, width)
             for i := 0; i < width; i++ {
-                line[i] = " " // fill with spaces
+                line[i] = " " // fill with spaces.
             }
             // Draw the snake.
             for idx, pos := range snake {
                 if pos >= 0 && pos < width {
                     block := "█"
                     if idx == snakeLength-1 {
-                        // The head: highlight it.
-                        line[pos] = beautify.Highlight(block, "white", "black")
+                        // The head: use starting color.
+                        line[pos] = fmt.Sprintf(colorFormat, startColor, block)
                     } else {
                         // The tail: use gradient colors.
-                        // Tail segment 0 (closest to head) uses tailColors[0], etc.
-                        colorIdx := idx // idx from 0 to snakeLength-2.
+                        colorIdx := idx
                         if colorIdx >= len(tailColors) {
                             colorIdx = len(tailColors) - 1
                         }
-                        line[pos] = fmt.Sprintf("\033[38;5;%dm%s\033[0m", tailColors[colorIdx], block)
+                        line[pos] = fmt.Sprintf(colorFormat, tailColors[colorIdx], block)
                     }
                 }
             }
