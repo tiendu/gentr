@@ -44,10 +44,6 @@ func main() {
     case "help", "--help", "-h":
         cmd.HelpCommand()
         os.Exit(0)
-    default:
-        // If an unknown command is provided, show help.
-        cmd.HelpCommand()
-        os.Exit(1)
     }
 
     // Parse the flags/options
@@ -83,6 +79,10 @@ func main() {
     }
     command := strings.Join(commandArgs, " ")
 
+    // Start the spinner in a separate goroutine.
+    spinnerDone := make(chan struct{})
+    go cmd.BounceSpinner(spinnerDone)
+
     // Start watching files.
     go internal.WatchFiles(files, command, opts)
 
@@ -90,6 +90,9 @@ func main() {
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
     <-sigChan
+
+    // Stop the spinner.
+    close(spinnerDone)
     fmt.Println("\nShutting down gentr...")
 }
 
