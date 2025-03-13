@@ -56,6 +56,13 @@ func BounceSpinner(done chan struct{}, control chan string) {
             // Clear the line before exiting.
             fmt.Print("\r" + strings.Repeat(" ", width) + "\r")
             return
+        case cmd := <-control:
+            // Handle pause/resume commands.
+            if cmd == "pause" {
+                paused = true
+            } else if cmd == "resume" {
+                paused = false
+            }
         default:
             if paused {
                 time.Sleep(100 * time.Millisecond)
