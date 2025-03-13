@@ -71,16 +71,46 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }
         timer := time.NewTimer(debounceDuration)
         <-timer.C
-        // Enhanced message with color and bold formatting.
-        message := beautify.Bold(beautify.Color(fmt.Sprintf("\nChange detected in file: %s. Executing command...", changedFile), "cyan"))
-        fmt.Println(message)
+        fmt.Printf("\nChange detected in file: %s. Executing command...\n", changedFile)
+        // Read the new content.
+        data, err := os.ReadFile(changedFile)
+        if err != nil {
+            fmt.Printf("Error reading file %s: %v\n", changedFile, err)
+            spinnerControl <- "resume"
+            continue
+        }
+        newContent := strings.Split(string(data), "\n")
+        oldContent, exists := fileContents[changedFile]
+        if !exists {
+            oldContent = []string{}
+        }
+        // Compute diff.
+        added, removed := DiffLines(oldContent, newContent)
+        // Print added lines.
+        for _, line := range added {
+            fmt.Printf("%s %s %s\n",
+                beautify.Bold(beautify.Color(changedFile, "cyan")),
+                beautify.Bold(beautify.Highlight("ADD", "white", "green")),
+                beautify.Bold(beautify.Color(line, "green")),
+            )
+        }
+        // Print removed lines.
+        for _, line := range removed {
+            fmt.Printf("%s %s %s\n",
+                beautify.Bold(beautify.Color(changedFile, "cyan")),
+                beautify.Bold(beautify.Highlight("REM", "white", "red")),
+                beautify.Bold(beautify.Color(line, "red")),
+            )
+        }
+        // Update the stored content.
+        fileContents[changedFile] = newContent
+
+        // Optionally, execute the command and show its output.
         output := RunCommand(command, changedFile)
         FilterLogs(output, opts)
+
         // Resume the spinner.
-        select {
-        case spinnerControl <- "resume":
-        default:
-        }
+        spinnerControl <- "resume"
     }
     // Note: wg.Wait() is unreachable because of the infinite loop.
 }
