@@ -94,22 +94,25 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
             oldContent = []string{}
         }
         // Compute diff.
-        added, removed := DiffLines(oldContent, newContent)
-        // Print added lines.
-        for _, line := range added {
-            fmt.Printf("%s %s %s\n",
-                beautify.Bold(beautify.Color(changedFile, "cyan")),
-                beautify.Bold(beautify.Highlight("ADD", "white", "green")),
-                beautify.Bold(beautify.Color(line, "green")),
-            )
-        }
-        // Print removed lines.
-        for _, line := range removed {
-            fmt.Printf("%s %s %s\n",
-                beautify.Bold(beautify.Color(changedFile, "cyan")),
-                beautify.Bold(beautify.Highlight("REM", "white", "red")),
-                beautify.Bold(beautify.Color(line, "red")),
-            )
+        diffChanges := DiffLines(oldContent, newContent)
+        // Print the diff.
+        for _, change := range diffChanges {
+            if change.Type == "REM" {
+                fmt.Printf("%s:%d %s: %s\n",
+                    beautify.Bold(beautify.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    beautify.Bold(beautify.Highlight("REM", "white", "red")),
+                    beautify.Bold(beautify.Color(change.Text, "red")),
+                )
+            }
+            if change.Type == "ADD" {
+                fmt.Printf("%s:%d %s: %s\n",
+                    beautify.Bold(beautify.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    beautify.Bold(beautify.Highlight("ADD", "white", "green")),
+                    beautify.Bold(beautify.Color(change.Text, "green")),
+                )
+            }
         }
         // Update the stored content.
         fileContents[changedFile] = newContent
