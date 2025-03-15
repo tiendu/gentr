@@ -5,6 +5,7 @@ import (
     "os"
     "sync"
     "time"
+    "strings"
 
     "gentr/cmd"
     "gentr/internal/beautify"
@@ -19,6 +20,10 @@ var debounceDuration = 500 * time.Millisecond
 func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl chan string) {
     // Map to track the last modification time of each file.
     modTimes := make(map[string]time.Time)
+
+    // Map to store previous content of each file (as slice of lines).
+    fileContents := make(map[string][]string)
+
     for _, file := range files {
         info, err := os.Stat(file)
         if err != nil {
@@ -26,6 +31,10 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
             continue
         }
         modTimes[file] = info.ModTime()
+        data, err := os.ReadFile(file)
+        if err == nil {
+            fileContents[file] = strings.Split(string(data), "\n")
+        }
     }
 
     // Create a channel to signal change events, carrying the changed file's name.
