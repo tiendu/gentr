@@ -12,6 +12,33 @@ type DiffChange struct {
     Text       string
 }
 
+// CombineModifications scans a slice of DiffChange items and,
+// when it finds a "ADD" immediately followed by an "REM" with the same line number,
+// it replaces them with a single "MOD" change.
+func CombineModifications(changes []DiffChange) []DiffChange {
+    var combined []DiffChange
+    i := 0
+    for i < len(changes) {
+        if i < len(changes)-1 &&
+            changes[i].Type == "ADD" &&
+            changes[i+1].Type == "REM" &&
+            changes[i].LineNumber == changes[i+1].LineNumber {
+            // Combine them into a MOD change.
+            mod := DiffChange{
+                LineNumber: changes[i].LineNumber,
+                Type:       "MOD",
+                Text:       utils.TruncateLine(changes[i+1].Text, 60) + " -> " + utils.TruncateLine(changes[i].Text, 60),
+            }
+            combined = append(combined, mod)
+            i += 2
+        } else {
+            combined = append(combined, changes[i])
+            i++
+        }
+    }
+    return combined
+}
+
 // DiffLines computes a diff between oldLines and newLines using an LCS algorithm.
 // It returns a slice of DiffChange items representing added or removed lines.
 // For additions, the line number is taken from newLines, and for removals, from oldLines.

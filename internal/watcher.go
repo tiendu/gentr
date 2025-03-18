@@ -95,24 +95,32 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }
         // Compute diff.
         diffChanges := DiffLines(oldContent, newContent)
+        combinedDiffs := CombineModifications(diffChanges)
         // Print the diff.
-        for _, change := range diffChanges {
-            if change.Type == "REM" {
+        for _, change := range combinedDiffs {
+            switch change.Type {
+            case "MOD":
+                fmt.Printf("%s:%d %s: %s\n",
+                    utils.Bold(utils.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    utils.Bold(utils.Highlight("MOD", "gray", "yellow")),
+                    utils.Bold(change.Text),
+                )
+            case "REM": 
                 fmt.Printf("%s:%d %s: %s\n",
                     utils.Bold(utils.Color(changedFile, "cyan")),
                     change.LineNumber,
                     utils.Bold(utils.Highlight("REM", "white", "red")),
                     utils.Bold(utils.Color(change.Text, "red")),
                 )
-            }
-            if change.Type == "ADD" {
+            case "ADD": 
                 fmt.Printf("%s:%d %s: %s\n",
                     utils.Bold(utils.Color(changedFile, "cyan")),
                     change.LineNumber,
                     utils.Bold(utils.Highlight("ADD", "white", "green")),
                     utils.Bold(utils.Color(change.Text, "green")),
                 )
-            }
+           }
         }
         // Update the stored content.
         fileContents[changedFile] = newContent
