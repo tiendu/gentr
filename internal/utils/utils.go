@@ -1,6 +1,14 @@
-package beautify
+package utils
 
 import "fmt"
+
+// truncateLine truncates a string to maxLen characters, appending "..." if truncated.
+func truncateLine(line string, maxLen int) string {
+    if len(line) > maxLen {
+        return line[:maxLen] + "..."
+    }
+    return line
+}
 
 // Bold wraps text in ANSI codes for bold formatting.
 func Bold(text string) string {

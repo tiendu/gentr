@@ -8,7 +8,7 @@ import (
     "os/exec"
     "path/filepath"
 
-    "gentr/internal/beautify"
+    "gentr/internal/utils"
 )
 
 // VersionStr and RevisionStr can be set at build time.
@@ -27,22 +27,22 @@ type Options struct {
 func (o Options) String() string {
     var debugVal, recursiveVal, lengthVal string
     if o.Debug {
-        debugVal = beautify.Highlight("true", "white", "green")
+        debugVal = utils.Highlight("true", "white", "green")
     } else {
-        debugVal = beautify.Highlight("false", "white", "red")
+        debugVal = utils.Highlight("false", "white", "red")
     }
     if o.Recursive {
-        recursiveVal = beautify.Highlight("true", "white", "green")
+        recursiveVal = utils.Highlight("true", "white", "green")
     } else {
-        recursiveVal = beautify.Highlight("false", "white", "red")
+        recursiveVal = utils.Highlight("false", "white", "red")
     }
     if o.Length > 0 {
-        lengthVal = beautify.Highlight(fmt.Sprintf("%d", o.Length), "white", "green")
+        lengthVal = utils.Highlight(fmt.Sprintf("%d", o.Length), "white", "green")
     } else {
-        lengthVal = beautify.Highlight("none", "white", "red")
+        lengthVal = utils.Highlight("none", "white", "red")
     }
     // For input, we just color it normally (or you can also choose to highlight).
-    inputVal := beautify.Bold(beautify.Color(o.Input, "cyan"))
+    inputVal := utils.Bold(utils.Color(o.Input, "cyan"))
     return fmt.Sprintf("--debug %s; --recursive %s; --length %s; --input %s", debugVal, recursiveVal, lengthVal, inputVal)
 }
 

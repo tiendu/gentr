@@ -8,7 +8,7 @@ import (
     "strings"
 
     "gentr/cmd"
-    "gentr/internal/beautify"
+    "gentr/internal/utils"
 )
 
 // debounceDuration is the delay to wait after the last change before executing the command.
@@ -99,18 +99,18 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         for _, change := range diffChanges {
             if change.Type == "REM" {
                 fmt.Printf("%s:%d %s: %s\n",
-                    beautify.Bold(beautify.Color(changedFile, "cyan")),
+                    utils.Bold(utils.Color(changedFile, "cyan")),
                     change.LineNumber,
-                    beautify.Bold(beautify.Highlight("REM", "white", "red")),
-                    beautify.Bold(beautify.Color(change.Text, "red")),
+                    utils.Bold(utils.Highlight("REM", "white", "red")),
+                    utils.Bold(utils.Color(change.Text, "red")),
                 )
             }
             if change.Type == "ADD" {
                 fmt.Printf("%s:%d %s: %s\n",
-                    beautify.Bold(beautify.Color(changedFile, "cyan")),
+                    utils.Bold(utils.Color(changedFile, "cyan")),
                     change.LineNumber,
-                    beautify.Bold(beautify.Highlight("ADD", "white", "green")),
-                    beautify.Bold(beautify.Color(change.Text, "green")),
+                    utils.Bold(utils.Highlight("ADD", "white", "green")),
+                    utils.Bold(utils.Color(change.Text, "green")),
                 )
             }
         }
