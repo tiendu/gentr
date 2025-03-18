@@ -21,11 +21,12 @@ type Options struct {
     Recursive bool
     Input     string
     Length    int
+    Log       bool
 }
 
 // String implements the Stringer interface for pretty-printing the options with enhanced formatting.
 func (o Options) String() string {
-    var debugVal, recursiveVal, lengthVal string
+    var debugVal, recursiveVal, lengthVal, logVal string
     if o.Debug {
         debugVal = utils.Highlight("true", "white", "green")
     } else {
@@ -41,9 +42,14 @@ func (o Options) String() string {
     } else {
         lengthVal = utils.Highlight("none", "white", "red")
     }
+    if o.Log {
+        logVal = utils.Highlight("true", "white", "green")
+    } else {
+        logVal = utils.Highlight("false", "white", "red")
+    }
     // For input, we just color it normally (or you can also choose to highlight).
     inputVal := utils.Bold(utils.Color(o.Input, "cyan"))
-    return fmt.Sprintf("--debug %s; --recursive %s; --length %s; --input %s", debugVal, recursiveVal, lengthVal, inputVal)
+    return fmt.Sprintf("--debug %s; --recursive %s; --length %s; --log %s; --input %s", debugVal, recursiveVal, lengthVal, logVal, inputVal)
 }
 
 // ParseOptions parses command-line flags and returns an Options struct.
@@ -66,6 +72,9 @@ func ParseOptions() Options {
     // String flags for input.
     flag.StringVar(&opts.Input, "input", ".", "Input directory, file, or glob pattern (e.g., '.', 'logs/*.log')")
     flag.StringVar(&opts.Input, "i", ".", "Input directory, file, or glob pattern (short)")
+
+    // Boolean flag for log.
+    flag.BoolVar(&opts.Log, "log", false, "Enable logging")
 
     flag.Parse()
     return opts
@@ -97,6 +106,9 @@ Options:
 
   --length, -l
        Limit the number of output lines to this length. If set, only the most recent lines of output will be displayed.
+
+  --log
+       Enable logging (writes output to a .log file).
 
   --input, -i
        Input directory, file, or glob pattern (e.g., '.', 'logs/*.log'). Specifies the files or directories to monitor for changes.

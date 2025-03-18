@@ -79,6 +79,13 @@ func main() {
     }
     command := strings.Join(commandArgs, " ")
 
+    // Initialize session log if logging is enabled.
+    if opts.Log {
+        if err := internal.InitSessionLog(opts, command); err != nil {
+            fmt.Fprintf(os.Stderr, "Error initializing log file: %v\n", err)
+        }
+    }
+
     // Create a spinner control channel.
     spinnerControl := make(chan string, 1)
     spinnerDone := make(chan struct{})

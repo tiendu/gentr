@@ -6,6 +6,7 @@ import (
     "sync"
     "time"
     "strings"
+    "strconv"
 
     "gentr/cmd"
     "gentr/internal/utils"
@@ -93,41 +94,66 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         if !exists {
             oldContent = []string{}
         }
-        // Compute diff.
-        diffChanges := DiffLines(oldContent, newContent)
-        combinedDiffs := CombineModifications(diffChanges)
-        // Print the diff.
-        for _, change := range combinedDiffs {
-            switch change.Type {
-            case "MOD":
-                fmt.Printf("%s:%d %s: %s\n",
-                    utils.Bold(utils.Color(changedFile, "cyan")),
-                    change.LineNumber,
-                    utils.Bold(utils.Highlight("MOD", "gray", "yellow")),
-                    utils.Bold(change.Text),
-                )
-            case "REM": 
-                fmt.Printf("%s:%d %s: %s\n",
-                    utils.Bold(utils.Color(changedFile, "cyan")),
-                    change.LineNumber,
-                    utils.Bold(utils.Highlight("REM", "white", "red")),
-                    utils.Bold(utils.Color(change.Text, "red")),
-                )
-            case "ADD": 
-                fmt.Printf("%s:%d %s: %s\n",
-                    utils.Bold(utils.Color(changedFile, "cyan")),
-                    change.LineNumber,
-                    utils.Bold(utils.Highlight("ADD", "white", "green")),
-                    utils.Bold(utils.Color(change.Text, "green")),
-                )
-           }
-        }
         // Update the stored content.
         fileContents[changedFile] = newContent
 
         // Optionally, execute the command and show its output.
         output := RunCommand(command, changedFile)
         FilterLogs(output, opts)
+
+        // Extract exit status from the combined output.
+        parts := strings.Split(output, "\n----\n")
+        exitStatus := 0
+        if len(parts) == 2 {
+            statusParts := strings.Split(parts[1], "|")
+            if len(statusParts) >= 2 {
+                // Convert exit status from string to int.
+                var err error
+                exitStatus, err = strconv.Atoi(statusParts[1])
+                if err != nil {
+                    fmt.Printf("Error parsing exit status: %v\n", err)
+                }
+            }
+        }
+
+        // Compute diff.
+        diffChanges := DiffLines(oldContent, newContent)
+        combinedDiffs := CombineModifications(diffChanges)
+        // Print the diff.
+        for _, change := range combinedDiffs {
+            var diffEntry string
+            switch change.Type {
+            case "MOD":
+                diffEntry = fmt.Sprintf("%s:%d %s: %s\n",
+                    utils.Bold(utils.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    utils.Bold(utils.Highlight("MOD", "gray", "yellow")),
+                    utils.Bold(change.Text),
+                )
+            case "REM": 
+                diffEntry = fmt.Sprintf("%s:%d %s: %s\n",
+                    utils.Bold(utils.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    utils.Bold(utils.Highlight("REM", "white", "red")),
+                    utils.Bold(utils.Color(change.Text, "red")),
+                )
+            case "ADD": 
+                diffEntry = fmt.Sprintf("%s:%d %s: %s\n",
+                    utils.Bold(utils.Color(changedFile, "cyan")),
+                    change.LineNumber,
+                    utils.Bold(utils.Highlight("ADD", "white", "green")),
+                    utils.Bold(utils.Color(change.Text, "green")),
+                )
+           }
+           fmt.Println(diffEntry)
+           // Write log entry
+            if opts.Log {
+                trimmedEntry := strings.TrimSpace(diffEntry)
+                if err := WriteLogEntry(trimmedEntry, exitStatus); err != nil {
+                    fmt.Printf("Error writing log: %v\n", err)
+                }
+            }
+        }
 
         // Resume the spinner.
         spinnerControl <- "resume"
