@@ -43,14 +43,14 @@ func DiffLines(oldLines, newLines []string) []DiffChange {
             changes = append([]DiffChange{{
                 LineNumber: i,
                 Type:       "REM",
-                Text:       utils.truncateLine(oldLines[i-1], 60),
+                Text:       utils.TruncateLine(oldLines[i-1], 60),
             }}, changes...)
             i--
         } else {
             changes = append([]DiffChange{{
                 LineNumber: j,
                 Type:       "ADD",
-                Text:       utils.truncateLine(newLines[j-1], 60),
+                Text:       utils.TruncateLine(newLines[j-1], 60),
             }}, changes...)
             j--
         }
@@ -60,7 +60,7 @@ func DiffLines(oldLines, newLines []string) []DiffChange {
         changes = append([]DiffChange{{
             LineNumber: i,
             Type:       "REM",
-            Text:       utils.truncateLine(oldLines[i-1], 60),
+            Text:       utils.TruncateLine(oldLines[i-1], 60),
         }}, changes...)
         i--
     }
@@ -68,7 +68,7 @@ func DiffLines(oldLines, newLines []string) []DiffChange {
         changes = append([]DiffChange{{
             LineNumber: j,
             Type:       "ADD",
-            Text:       utils.truncateLine(newLines[j-1], 60),
+            Text:       utils.TruncateLine(newLines[j-1], 60),
         }}, changes...)
         j--
     }

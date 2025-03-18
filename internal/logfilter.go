@@ -32,7 +32,7 @@ func FilterLogs(input string, opts cmd.Options) {
     }
     // Truncate each line to 60 characters.
     for i, line := range rawLines {
-        rawLines[i] = truncateLine(line, 60)
+        rawLines[i] = utils.TruncateLine(line, 60)
     }
 
     // Print raw command output with a header.

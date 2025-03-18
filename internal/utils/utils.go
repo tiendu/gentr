@@ -2,8 +2,8 @@ package utils
 
 import "fmt"
 
-// truncateLine truncates a string to maxLen characters, appending "..." if truncated.
-func truncateLine(line string, maxLen int) string {
+// TruncateLine truncates a string to maxLen characters, appending "..." if truncated.
+func TruncateLine(line string, maxLen int) string {
     if len(line) > maxLen {
         return line[:maxLen] + "..."
     }
