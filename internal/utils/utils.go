@@ -36,6 +36,8 @@ func Color(text, color string) string {
         code = "36"
     case "white":
         code = "37"
+    case "gray", "grey":
+        code = "90"
     default:
         code = "37"
     }
@@ -54,6 +56,8 @@ func Highlight(text, fg, bg string) string {
         "magenta":       "35",
         "cyan":          "36",
         "white":         "37",
+        "gray":          "90",
+        "grey":          "90",
    }
     bgCodes := map[string]string{
         "black":         "40",
@@ -64,6 +68,8 @@ func Highlight(text, fg, bg string) string {
         "magenta":       "45",
         "cyan":          "46",
         "white":         "47",
+        "gray":          "100",
+        "grey":          "100",
    }
     fgCode, ok := fgCodes[fg]
     if !ok {
