@@ -1,13 +1,27 @@
 package internal
 
 import (
-    "encoding/csv"
     "fmt"
+    "os"
     "strings"
+    "regexp"
+    "time"
+    "encoding/csv"
 
     "gentr/cmd"
     "gentr/internal/utils"
 )
+
+// ansiRegexp is used to match ANSI escape sequences.
+var ansiRegexp = regexp.MustCompile(`\033\[[0-9;]*m`)
+
+// StripANSI removes ANSI escape sequences from a string.
+func StripANSI(s string) string {
+    return ansiRegexp.ReplaceAllString(s, "")
+}
+
+// sessionLogFile holds the filename for the current gentr session.
+var sessionLogFile string
 
 // FilterLogs processes the combined command output and status log.
 // It splits the output (separated by a delimiter) and prints the parts with enhanced formatting.
@@ -78,5 +92,64 @@ func FilterLogs(input string, opts cmd.Options) {
     } else {
         fmt.Println(statusLine)
     }
+}
+
+// InitSessionLog creates (or truncates) a log file for the current session,
+// using a timestamp-based filename, and writes the header (metadata) into it.
+func InitSessionLog(opts cmd.Options, command string) error {
+    sessionLogFile = time.Now().Format("2006-01-02T15-04-05") + ".log"
+
+    // Inform the user about the log file.
+    fmt.Printf("Created log file: %s\n", sessionLogFile) 
+
+    // Open the file in create/truncate mode.
+    f, err := os.Create(sessionLogFile)
+    if err != nil {
+        return fmt.Errorf("failed to create session log file: %v", err)
+    }
+    defer f.Close()
+
+    // Write a header with metadata.
+    timestamp := time.Now().Format(time.RFC3339)
+    header := fmt.Sprintf("# Options: %s\n# Command: %s\n# Timestamp: %s\n", StripANSI(opts.String()), command, timestamp)
+    separator := strings.Repeat("-", 80) + "\n"
+    // Write header and a TSV header.
+    if _, err := f.WriteString(header + separator); err != nil {
+        return err
+    }
+    tsvHeader := "Output\tExitStatus\n"
+    if _, err := f.WriteString(tsvHeader + separator); err != nil {
+        return err
+    }
+    return nil
+}
+
+// WriteLogEntry appends a log entry to a log file whose name is based on the current datetime.
+// The log entry includes metadata (options used and command run) and a table with two columns:
+// one for the command output (raw output) and one for the exit status.
+func WriteLogEntry(diffEntry string, exitStatus int) error {
+    if sessionLogFile == "" {
+        return fmt.Errorf("session log file not initialized")
+    }
+    f, err := os.OpenFile(sessionLogFile, os.O_APPEND|os.O_WRONLY, 0644)
+    if err != nil {
+        return fmt.Errorf("failed to open log file: %v", err)
+    }
+    defer f.Close()
+
+    // Prepare the record (strip ANSI colors).
+    record := []string{
+        StripANSI(diffEntry),
+        fmt.Sprintf("ExitStatus: %d", exitStatus),
+    }
+
+    // Use csv.Writer with tab as delimiter.
+    writer := csv.NewWriter(f)
+    writer.Comma = '\t'
+    if err := writer.Write(record); err != nil {
+        return fmt.Errorf("failed to write record: %v", err)
+    }
+    writer.Flush()
+    return writer.Error()
 }
 
