@@ -2,6 +2,8 @@ package internal
 
 import (
     "math"
+
+    "gentr/internal/utils"
 )
 
 type DiffChange struct {
@@ -38,20 +40,36 @@ func DiffLines(oldLines, newLines []string) []DiffChange {
             i--
             j--
         } else if dp[i-1][j] >= dp[i][j-1] {
-            changes = append([]DiffChange{{LineNumber: i, Type: "REM", Text: oldLines[i-1]}}, changes...)
+            changes = append([]DiffChange{{
+                LineNumber: i,
+                Type:       "REM",
+                Text:       utils.truncateLine(oldLines[i-1], 60),
+            }}, changes...)
             i--
         } else {
-            changes = append([]DiffChange{{LineNumber: j, Type: "ADD", Text: newLines[j-1]}}, changes...)
+            changes = append([]DiffChange{{
+                LineNumber: j,
+                Type:       "ADD",
+                Text:       utils.truncateLine(newLines[j-1], 60),
+            }}, changes...)
             j--
         }
     }
     // Process remaining lines if any.
     for i > 0 {
-        changes = append([]DiffChange{{LineNumber: i, Type: "REM", Text: oldLines[i-1]}}, changes...)
+        changes = append([]DiffChange{{
+            LineNumber: i,
+            Type:       "REM",
+            Text:       utils.truncateLine(oldLines[i-1], 60),
+        }}, changes...)
         i--
     }
     for j > 0 {
-        changes = append([]DiffChange{{LineNumber: j, Type: "ADD", Text: newLines[j-1]}}, changes...)
+        changes = append([]DiffChange{{
+            LineNumber: j,
+            Type:       "ADD",
+            Text:       utils.truncateLine(newLines[j-1], 60),
+        }}, changes...)
         j--
     }
     return changes

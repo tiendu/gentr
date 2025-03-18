@@ -50,8 +50,8 @@ It uses a debounce timer (default 500ms) to prevent rapid successive changes fro
 ├── entr
 ├── go.mod
 ├── internal
-│   ├── beautify
-│   │   └── beautify.go  # ANSI formatting utilities
+│   ├── utils
+│   │   └── utils.go  # Formatting utilities
 │   ├── executor.go  # Handles command execution
 │   ├── logfilter.go  # Processes the command output, formatting structured logs that indicate command status
 │   └── watcher.go  # Watches files (or directories, when recursive mode is enabled) for changes, debounces rapid events, and triggers command execution upon changes

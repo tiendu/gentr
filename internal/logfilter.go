@@ -6,16 +6,8 @@ import (
     "strings"
 
     "gentr/cmd"
-    "gentr/internal/beautify"
+    "gentr/internal/utils"
 )
-
-// truncateLine truncates a string to maxLen characters, appending "..." if truncated.
-func truncateLine(line string, maxLen int) string {
-    if len(line) > maxLen {
-        return line[:maxLen] + "..."
-    }
-    return line
-}
 
 // FilterLogs processes the combined command output and status log.
 // It splits the output (separated by a delimiter) and prints the parts with enhanced formatting.
@@ -44,7 +36,7 @@ func FilterLogs(input string, opts cmd.Options) {
     }
 
     // Print raw command output with a header.
-    fmt.Println(beautify.Bold(beautify.Color("Command Output:", "blue")))
+    fmt.Println(utils.Bold(utils.Color("Command Output:", "blue")))
     fmt.Println(strings.Join(rawLines, "\n"))
 
     // Process the status log.
@@ -62,23 +54,23 @@ func FilterLogs(input string, opts cmd.Options) {
                 if code == "0" {
                     // Use Highlight to emphasize a successful command.
                     formattedStatus = fmt.Sprintf("%s %s",
-                        beautify.Bold(beautify.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "green")),
-                        beautify.Color(fmt.Sprintf("returned exit code %s", code), "green"))
+                        utils.Bold(utils.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "green")),
+                        utils.Color(fmt.Sprintf("returned exit code %s", code), "green"))
                 } else {
                     // Use Highlight for a failed command.
                     formattedStatus = fmt.Sprintf("%s %s",
-                        beautify.Bold(beautify.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "red")),
-                        beautify.Color(fmt.Sprintf("returned exit code %s", code), "red"))
+                        utils.Bold(utils.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "red")),
+                        utils.Color(fmt.Sprintf("returned exit code %s", code), "red"))
                 }
             case "signal":
                 // Use Highlight for a command terminated by signal.
                 formattedStatus = fmt.Sprintf("%s %s",
-                    beautify.Bold(beautify.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "yellow")),
-                    beautify.Color(fmt.Sprintf("terminated by signal %s", code), "yellow"))
+                    utils.Bold(utils.Highlight(fmt.Sprintf("Command '%s'", cmdName), "white", "yellow")),
+                    utils.Color(fmt.Sprintf("terminated by signal %s", code), "yellow"))
             default:
                 formattedStatus = statusLine
             }
-            fmt.Println(beautify.Bold(beautify.Color("Status Log:", "blue")))
+            fmt.Println(utils.Bold(utils.Color("Status Log:", "blue")))
             fmt.Println(formattedStatus)
         } else {
             fmt.Println(statusLine)
