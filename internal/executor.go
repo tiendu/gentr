@@ -7,11 +7,17 @@ import (
     "syscall"
 )
 
-// RunCommand executes the provided shell command using "sh -c".
-// substituting "/_" with the changed file name.
-// It returns the raw output along with a structured status log (pipe-separated).
-func RunCommand(command, file string) string {
-    // Substitute the placeholder if present.
+// CommandResult holds the output of a command execution.
+type CommandResult struct {
+    RawOutput string
+    ExitCode  int
+    Command   string
+}
+
+// RunCommand executes the provided shell command using "sh -c", substituting "/_" with the changed file name.
+// It returns a CommandResult struct containing the raw output, the exit code, and the executed command.
+func RunCommand(command, file string) CommandResult {
+    // Substitute placeholder if present.
     if strings.Contains(command, "/_") {
         command = strings.ReplaceAll(command, "/_", file)
     }
@@ -25,10 +31,12 @@ func RunCommand(command, file string) string {
             }
         } else {
             fmt.Println("Error running command:", err)
-            return ""
         }
     }
-    statusLog := fmt.Sprintf("exit|%d|%s", exitCode, command)
-    combined := fmt.Sprintf("%s\n----\n%s", string(out), statusLog)
-    return combined
+    return CommandResult{
+        RawOutput: string(out),
+        ExitCode:  exitCode,
+        Command:   command,
+    }
 }
+
