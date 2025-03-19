@@ -3,10 +3,10 @@ package internal
 import (
     "fmt"
     "os"
+    "path/filepath"
+    "strings"
     "sync"
     "time"
-    "strings"
-    "strconv"
 
     "gentr/cmd"
     "gentr/internal/utils"
@@ -15,20 +15,42 @@ import (
 // debounceDuration is the delay to wait after the last change before executing the command.
 var debounceDuration = 500 * time.Millisecond
 
-// WatchFiles watches the given paths and triggers the specified command when a change is detected.
-// If opts.Recursive is true, directories are scanned recursively.
-// It sends "pause" and "resume" commands on the spinnerControl channel to control the spinner.
+// updateFileList rescans directories (from the initial file list) and adds any new files
+// to the modTimes and fileContents maps.
+func updateFileList(baseDirs []string, modTimes map[string]time.Time, fileContents map[string][]string) {
+    for _, dir := range baseDirs {
+        filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+            if err != nil || info.IsDir() {
+                return nil
+            }
+            // If the file is not already tracked, add it.
+            if _, exists := modTimes[path]; !exists {
+                modTimes[path] = info.ModTime()
+                data, err := os.ReadFile(path)
+                if err == nil {
+                    fileContents[path] = strings.Split(string(data), "\n")
+                    fmt.Printf("\nNew file detected and added: %s\n", path)
+                }
+            }
+            return nil
+        })
+    }
+}
+
+// WatchFiles monitors the given files and triggers the specified command when a change is detected.
+// It uses a map to store previous file contents so that diffs can be computed, prints changes,
+// logs them if logging is enabled, and controls a spinner via spinnerControl.
 func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl chan string) {
-    // Map to track the last modification time of each file.
+    // Map for last modification times.
     modTimes := make(map[string]time.Time)
-
-    // Map to store previous content of each file (as slice of lines).
+    // Map for storing previous content of each file (split into lines).
     fileContents := make(map[string][]string)
-
+    
+    // Initialize modTimes and fileContents from the initial file list.
     for _, file := range files {
         info, err := os.Stat(file)
         if err != nil {
-            fmt.Printf("Error stating file %s: %v\n", file, err)
+            fmt.Printf("\nError stating file %s: %v\n", file, err)
             continue
         }
         modTimes[file] = info.ModTime()
@@ -38,11 +60,11 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }
     }
 
-    // Create a channel to signal change events, carrying the changed file's name.
+    // Channel to signal change events (file path).
     changeChan := make(chan string, 1)
     var mu sync.Mutex
 
-    // Launch a goroutine per file that polls for changes.
+    // Launch a goroutine per file to poll for changes.
     var wg sync.WaitGroup
     for _, file := range files {
         wg.Add(1)
@@ -51,7 +73,21 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
             for {
                 info, err := os.Stat(f)
                 if err != nil {
-                    fmt.Printf("Error stating file %s: %v\n", f, err)
+                    // If the file is deleted.
+                    if os.IsNotExist(err) {
+                        mu.Lock()
+                        delete(modTimes, f)
+                        delete(fileContents, f)
+                        mu.Unlock()
+                        // Send a deletion event with "delete:" prefix.
+                        select {
+                        case changeChan <- "delete:" + f:
+                        default:
+                        }
+                        // End polling for this file.
+                        return
+                    }
+                    fmt.Printf("\nError stating file %s: %v\n", f, err)
                     time.Sleep(1 * time.Second)
                     continue
                 }
@@ -59,7 +95,6 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
                 lastMod := modTimes[f]
                 if info.ModTime().After(lastMod) {
                     modTimes[f] = info.ModTime()
-                    // Send the changed file name non-blockingly.
                     select {
                     case changeChan <- f:
                     default:
@@ -71,21 +106,53 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }(file)
     }
 
-    // Debounce change events.
-    for {
-        changedFile := <-changeChan
-        // Pause the spinner.
-        select {
-        case spinnerControl <- "pause":
-        default:
+    // If recursive mode is enabled, update file list periodically.
+    if opts.Recursive {
+        // If opts.Input is a directory, re-scan that directory.
+        baseDir := opts.Input
+        info, err := os.Stat(baseDir)
+        if err == nil && info.IsDir() {
+            ticker := time.NewTicker(10 * time.Second)
+            go func() {
+                for range ticker.C {
+                    updateFileList([]string{baseDir}, modTimes, fileContents)
+                }
+            }()
         }
+    }
+
+    // Process change events.
+    for {
+        changedEvent := <-changeChan
+        // Check if this is a deletion event.
+        if strings.HasPrefix(changedEvent, "delete:") {
+            deletedFile := strings.TrimPrefix(changedEvent, "delete:")
+            fmt.Printf("\nFile deleted: %s\n", deletedFile)
+            if opts.Log {
+                deletionEntry := fmt.Sprintf("%s: DELETED", deletedFile)
+                // Create a CommandResult for deletion.
+                delResult := CommandResult{
+                    RawOutput: "",
+                    ExitCode:  -1,
+                    Command:   "DELETED",
+                }
+                if err := WriteLogEntry(deletionEntry, delResult); err != nil {
+                    fmt.Printf("\nError writing deletion log: %v\n", err)
+                }
+            }
+            continue
+        }
+        changedFile := changedEvent
+        // Pause the spinner.
+        spinnerControl <- "pause"
         timer := time.NewTimer(debounceDuration)
         <-timer.C
+
         fmt.Printf("\nChange detected in file: %s. Executing command...\n", changedFile)
-        // Read the new content.
+        // Read new file content.
         data, err := os.ReadFile(changedFile)
         if err != nil {
-            fmt.Printf("Error reading file %s: %v\n", changedFile, err)
+            fmt.Printf("\nError reading file %s: %v\n", changedFile, err)
             spinnerControl <- "resume"
             continue
         }
@@ -94,32 +161,17 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         if !exists {
             oldContent = []string{}
         }
-        // Update the stored content.
+        // Update stored content.
         fileContents[changedFile] = newContent
 
-        // Optionally, execute the command and show its output.
-        output := RunCommand(command, changedFile)
-        FilterLogs(output, opts)
+        // Execute the command; RunCommand returns a CommandResult.
+        cr := RunCommand(command, changedFile)
+        // Display output (using FilterLogs). You can modify FilterLogs to accept CommandResult directly.
+        FilterLogs(cr, opts)
 
-        // Extract exit status from the combined output.
-        parts := strings.Split(output, "\n----\n")
-        exitStatus := 0
-        if len(parts) == 2 {
-            statusParts := strings.Split(parts[1], "|")
-            if len(statusParts) >= 2 {
-                // Convert exit status from string to int.
-                var err error
-                exitStatus, err = strconv.Atoi(statusParts[1])
-                if err != nil {
-                    fmt.Printf("Error parsing exit status: %v\n", err)
-                }
-            }
-        }
-
-        // Compute diff.
+        // Compute diff between old and new content.
         diffChanges := DiffLines(oldContent, newContent)
         combinedDiffs := CombineModifications(diffChanges)
-        // Print the diff.
         for _, change := range combinedDiffs {
             var diffEntry string
             switch change.Type {
@@ -144,13 +196,13 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
                     utils.Bold(utils.Highlight("ADD", "white", "green")),
                     utils.Bold(utils.Color(change.Text, "green")),
                 )
-           }
-           fmt.Println(diffEntry)
-           // Write log entry
+            }
+            fmt.Println(diffEntry)
+            // Write log entry if logging is enabled.
             if opts.Log {
                 trimmedEntry := strings.TrimSpace(diffEntry)
-                if err := WriteLogEntry(trimmedEntry, exitStatus); err != nil {
-                    fmt.Printf("Error writing log: %v\n", err)
+                if err := WriteLogEntry(trimmedEntry, cr); err != nil {
+                    fmt.Printf("\nError writing log: %v\n", err)
                 }
             }
         }
@@ -158,6 +210,6 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         // Resume the spinner.
         spinnerControl <- "resume"
     }
-    // Note: wg.Wait() is unreachable because of the infinite loop.
+    // Note: wg.Wait() is unreachable due to the infinite loop.
 }
 
