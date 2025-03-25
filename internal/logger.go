@@ -4,21 +4,12 @@ import (
     "encoding/csv"
     "fmt"
     "os"
-    "regexp"
     "strings"
     "time"
 
     "gentr/cmd"
     "gentr/internal/utils"
 )
-
-// ansiRegexp matches ANSI escape sequences.
-var ansiRegexp = regexp.MustCompile(`\033\[[0-9;]*m`)
-
-// StripANSI removes ANSI escape sequences from a string.
-func StripANSI(s string) string {
-    return ansiRegexp.ReplaceAllString(s, "")
-}
 
 // sessionLogFile holds the filename for the current session.
 var sessionLogFile string
@@ -74,7 +65,7 @@ func InitSessionLog(opts cmd.Options, command string) error {
 
     // Write metadata header (each line starting with "#").
     timestamp := time.Now().Format(time.RFC3339)
-    header := fmt.Sprintf("# Options: %s\n# Command: %s\n# Timestamp: %s\n", StripANSI(opts.String()), command, timestamp)
+    header := fmt.Sprintf("# Options: %s\n# Command: %s\n# Timestamp: %s\n", utils.StripANSI(opts.String()), command, timestamp)
     separator := strings.Repeat("-", 80) + "\n"
     if _, err := f.WriteString(header + separator); err != nil {
         return err
@@ -101,7 +92,7 @@ func WriteLogEntry(diffEntry string, cr CommandResult) error {
 
     // Prepare the TSV record: strip ANSI codes from the diff entry.
     record := []string{
-        StripANSI(diffEntry),
+        utils.StripANSI(diffEntry),
         fmt.Sprintf("ExitStatus: %d", cr.ExitCode),
     }
 

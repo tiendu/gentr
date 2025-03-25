@@ -1,6 +1,17 @@
 package utils
 
-import "fmt"
+import (
+    "fmt"
+    "regexp"
+)
+
+// ansiRegexp matches ANSI escape sequences.
+var ansiRegexp = regexp.MustCompile(`\033\[[0-9;]*m`)
+
+// StripANSI removes ANSI escape sequences from a string.
+func StripANSI(s string) string {
+    return ansiRegexp.ReplaceAllString(s, "")
+}
 
 // TruncateLine truncates a string to maxLen characters, appending "..." if truncated.
 func TruncateLine(line string, maxLen int) string {
