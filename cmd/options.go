@@ -87,9 +87,7 @@ func GetCommandArgs() []string {
 
 // HelpCommand displays help message for gentr CLI.
 func HelpCommand() {
-    cmdName := filepath.Base(os.Args[0])
-
-    fmt.Printf(`Usage: %s <command> [options]
+    fmt.Printf(`Usage: gentr <command> [options]
 
 Commands:
   install      Install this tool as a system command
@@ -104,7 +102,7 @@ Options:
        Enable debug mode (Displays verbose output during execution)
 
   --recursive, -r
-       Watch directories recursively. When enabled, %s traverses directories and watches all files found.
+       Watch directories recursively. When enabled, gentr traverses directories and watches all files found.
 
   --length, -l
        Limit the number of output lines to this length. If set, only the most recent lines of output will be displayed.
@@ -114,12 +112,11 @@ Options:
 
   --input, -i
        Input directory, file, or glob pattern (e.g., '.', 'logs/*.log'). Specifies the files or directories to monitor for changes.
-       Example: %s --input 'logs/*.log' --recursive
+       Example: gentr --input 'logs/*.log' --recursive
 
   INSTALL_PATH
        Override the default installation path (e.g., '/usr/local/bin')
-       Example: INSTALL_PATH=/usr/local/bin %s install
-`, cmdName, cmdName, cmdName, cmdName)
+       Example: INSTALL_PATH=/usr/local/bin gentr install`)
 }
 
 // InstallCommand installs this binary to a specific directory.
