@@ -5,14 +5,14 @@ import (
     "fmt"
     "io"
     "os"
-    "os/exec"
     "path/filepath"
+    "strings"
 
     "gentr/internal/utils"
 )
 
 // VersionStr and RevisionStr can be set at build time.
-var VersionStr = "0.1.0"
+var VersionStr = "0.2.0"
 var RevisionStr = "unknown"
 
 // Options holds command-line flag settings.
@@ -85,9 +85,11 @@ func GetCommandArgs() []string {
     return flag.Args()
 }
 
-// HelpCommand displays the usage and available commands/options.
+// HelpCommand displays help message for gentr CLI.
 func HelpCommand() {
-    fmt.Println(`Usage: gentr <command> [options]
+    cmdName := filepath.Base(os.Args[0])
+
+    fmt.Printf(`Usage: %s <command> [options]
 
 Commands:
   install      Install this tool as a system command
@@ -102,7 +104,7 @@ Options:
        Enable debug mode (Displays verbose output during execution)
 
   --recursive, -r
-       Watch directories recursively. When enabled, gentr traverses directories and watches all files found.
+       Watch directories recursively. When enabled, %s traverses directories and watches all files found.
 
   --length, -l
        Limit the number of output lines to this length. If set, only the most recent lines of output will be displayed.
@@ -112,86 +114,183 @@ Options:
 
   --input, -i
        Input directory, file, or glob pattern (e.g., '.', 'logs/*.log'). Specifies the files or directories to monitor for changes.
-       Example: gentr --input 'logs/*.log' --recursive
+       Example: %s --input 'logs/*.log' --recursive
 
   INSTALL_PATH
        Override the default installation path (e.g., '/usr/local/bin')
-       Example: INSTALL_PATH=/usr/local/bin gentr install`)
+       Example: INSTALL_PATH=/usr/local/bin %s install
+`, cmdName, cmdName, cmdName, cmdName)
 }
 
-// InstallCommand installs this binary to a specific directory
-func InstallCommand() {
+// InstallCommand installs this binary to a specific directory.
+func InstallCommand(args []string) {
+    installPath := parsePathFlag(args)
+
     appFilePath, err := os.Executable()
     if err != nil {
         fmt.Printf("Error determining executable path: %v\n", err)
         return
     }
 
-    dest, err := installSubCmd(appFilePath, "entr")
+    dest, err := installSubCmd(appFilePath, installPath)
     if err != nil {
-        fmt.Printf("Install failed, err=%v\n", err)
-    } else {
-        fmt.Printf("Installed entr to %s\n", dest)
+        fmt.Printf("❌ Install failed: %v\n", err)
+        return
     }
+
+    fmt.Printf("✅ Installed gentr to %s\n", dest)
+    checkPathNotice(installPath)
 }
 
 // installSubCmd copies the current binary to a desired installation path.
-func installSubCmd(appFilePath, subCmd string) (string, error) {
-    // Allow override of installation path using an environment variable
-    execPath := os.Getenv("INSTALL_PATH")
-    if execPath == "" {
-        execPath = "/usr/local/bin" // Default path if not set.
+func installSubCmd(appFilePath, installPath string) (string, error) {
+    if err := os.MkdirAll(installPath, 0755); err != nil {
+        return "", fmt.Errorf("failed to create directory %s: %v", installPath, err)
     }
 
-    destPath := filepath.Join(execPath, subCmd)
+    destBinary := filepath.Join(installPath, "gentr")
 
-    // Ensure the exec directory exists.
-    if _, err := os.Stat(execPath); os.IsNotExist(err) {
-        if err := os.MkdirAll(execPath, 0755); err != nil {
-            return "", fmt.Errorf("failed to create directory %s: %v", execPath, err)
-        }
-    }
-
-    srcFile, err := os.Open(appFilePath)
-    if err != nil {
+    if err := copyFile(appFilePath, destBinary, 0755); err != nil {
         return "", err
     }
-    defer srcFile.Close()
 
-    destFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY, 0755)
-    if err != nil {
-        return "", err
-    }
-    defer destFile.Close()
-
-    if _, err := io.Copy(destFile, srcFile); err != nil {
-        return "", err
-    }
-    return destPath, nil
+    return destBinary, nil
 }
 
-// UninstallCommand removes the installed Git subcommand (entr).
-func UninstallCommand() {
-    path, err := exec.LookPath("entr")
-    if err != nil {
-        fmt.Printf("entr not found in PATH, nothing to uninstall.\n")
+// UninstallCommand removes the installed gentr binary.
+func UninstallCommand(args []string) {
+    installPath := parsePathFlag(args)
+    destBinary := filepath.Join(installPath, "gentr")
+
+    if _, err := os.Stat(destBinary); os.IsNotExist(err) {
+        fmt.Printf("Nothing to uninstall at %s\n", destBinary)
         return
     }
-    if err := os.Remove(path); err != nil {
-        fmt.Printf("Uninstall failed: %v\n", err)
+
+    if err := os.Remove(destBinary); err != nil {
+        fmt.Printf("❌ Uninstall failed: %v\n", err)
         return
     }
-    fmt.Printf("Uninstalled entr from %s\n", path)
+
+    fmt.Printf("✅ Uninstalled gentr from %s\n", destBinary)
 }
 
 // ReinstallCommand uninstalls and then reinstalls the tool.
-func ReinstallCommand() {
-    UninstallCommand()
-    InstallCommand()
+func ReinstallCommand(args []string) {
+    UninstallCommand(args)
+    InstallCommand(args)
 }
 
 // VersionCommand prints version information.
 func VersionCommand() {
-    fmt.Printf("entr version %s, build revision %s\n", VersionStr, RevisionStr)
+    fmt.Printf("gentr version %s, build revision %s\n", VersionStr, RevisionStr)
 }
 
+// Helpers
+// parsePathFlag parses the INSTALL_PATH environment variable or defaults.
+func parsePathFlag(args []string) string {
+    if envPath := os.Getenv("INSTALL_PATH"); envPath != "" {
+        return envPath
+    }
+
+    fs := flag.NewFlagSet("path", flag.ExitOnError)
+    defaultPath := defaultInstallPath()
+    installPath := fs.String("path", defaultPath, "Specify custom install path")
+    installPathShort := fs.String("p", defaultPath, "Specify custom install path (shorthand)")
+    _ = fs.Parse(args)
+
+    if *installPathShort != defaultPath {
+        return *installPathShort
+    }
+
+    return *installPath
+}
+
+// defaultInstallPath returns the default installation path ~/.local/bin
+func defaultInstallPath() string {
+    homeDir, err := os.UserHomeDir()
+    if err != nil {
+        return "./gentr"
+    }
+    return filepath.Join(homeDir, ".local", "bin")
+}
+
+// copyFile copies a file from src to dst with given permissions.
+func copyFile(srcPath, destPath string, mode os.FileMode) error {
+    srcFile, err := os.Open(srcPath)
+    if err != nil {
+        return err
+    }
+    defer srcFile.Close()
+
+    destFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+    if err != nil {
+        return err
+    }
+    defer destFile.Close()
+
+    _, err = io.Copy(destFile, srcFile)
+    return err
+}
+
+// checkPathNotice advises the user to add install path to PATH if it's not already.
+func checkPathNotice(installPath string) {
+    if isInPath(installPath) {
+        return
+    }
+
+    shell := detectShell()
+
+    fmt.Println()
+    fmt.Println(utils.Bold(utils.Color("⚠️  PATH Notice:", "yellow")))
+    fmt.Printf("Your install path %s is %s in your PATH.\n",
+        utils.Color(installPath, "cyan"),
+        utils.Color("not", "red"),
+    )
+
+    fmt.Println(utils.Color("\nTo use gentr from anywhere, add it to your PATH:", "magenta"))
+
+    switch shell {
+    case "zsh":
+        fmt.Printf("\n%s\n", utils.Color(
+            fmt.Sprintf("echo 'export PATH=\"%s:$PATH\"' >> ~/.zshrc && source ~/.zshrc", installPath),
+            "green",
+        ))
+    case "bash":
+        fmt.Printf("\n%s\n", utils.Color(
+            fmt.Sprintf("echo 'export PATH=\"%s:$PATH\"' >> ~/.bashrc && source ~/.bashrc", installPath),
+            "green",
+        ))
+    default:
+        fmt.Println(utils.Color(
+            fmt.Sprintf("\nYour shell could not be detected. Please manually add %s to your PATH.", installPath),
+            "yellow",
+        ))
+    }
+
+    fmt.Println(utils.Color("\nAfter adding, restart your terminal or run the above command to apply changes immediately.", "yellow"))
+    fmt.Println()
+}
+
+// detectShell tries to detect the user's shell from environment.
+func detectShell() string {
+    shellEnv := os.Getenv("SHELL")
+    if strings.Contains(shellEnv, "zsh") {
+        return "zsh"
+    }
+    if strings.Contains(shellEnv, "bash") {
+        return "bash"
+    }
+    return "unknown"
+}
+
+// isInPath checks if the given directory is in the PATH environment variable.
+func isInPath(dir string) bool {
+    pathEnv := os.Getenv("PATH")
+    for _, p := range filepath.SplitList(pathEnv) {
+        if p == dir {
+            return true
+        }
+    }
+    return false
+}
