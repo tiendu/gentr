@@ -39,8 +39,8 @@ func updateFileList(baseDirs []string, modTimes map[string]time.Time, fileConten
 
 // WatchFiles monitors the given files and triggers the specified command when a change is detected.
 // It uses a map to store previous file contents so that diffs can be computed, prints changes,
-// logs them if logging is enabled, and controls a spinner via spinnerControl.
-func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl chan string) {
+// logs them if logging is enabled, and controls a spinner during execution.
+func WatchFiles(files []string, command string, opts cmd.Options, spinner cmd.Spinner) {
     // Map for last modification times.
     modTimes := make(map[string]time.Time)
     // Map for storing previous content of each file (split into lines).
@@ -144,7 +144,7 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }
         changedFile := changedEvent
         // Pause the spinner.
-        spinnerControl <- "pause"
+        spinner.Pause()
         timer := time.NewTimer(debounceDuration)
         <-timer.C
 
@@ -153,7 +153,7 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         data, err := os.ReadFile(changedFile)
         if err != nil {
             fmt.Printf("\nError reading file %s: %v\n", changedFile, err)
-            spinnerControl <- "resume"
+            spinner.Resume()
             continue
         }
         newContent := strings.Split(string(data), "\n")
@@ -208,7 +208,7 @@ func WatchFiles(files []string, command string, opts cmd.Options, spinnerControl
         }
 
         // Resume the spinner.
-        spinnerControl <- "resume"
+        spinner.Resume()
     }
     // Note: wg.Wait() is unreachable due to the infinite loop.
 }

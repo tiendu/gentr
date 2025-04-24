@@ -116,7 +116,8 @@ Options:
 
   INSTALL_PATH
        Override the default installation path (e.g., '/usr/local/bin')
-       Example: INSTALL_PATH=/usr/local/bin gentr install`)
+       Example: INSTALL_PATH=/usr/local/bin gentr install
+`)
 }
 
 // InstallCommand installs this binary to a specific directory.
