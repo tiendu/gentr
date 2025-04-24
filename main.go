@@ -21,31 +21,14 @@ func main() {
 	subcommand := args[0]
 	subArgs := args[1:]
 
-	switch subcommand {
-	case "install":
-		cmd.InstallCommand(subArgs)
+	// Handle routing first (install, uninstall, etc.)
+	router := cmd.NewCommandRouter()
+	if isBuiltinCommand(subcommand) {
+		router.Run(subcommand, subArgs)
 		return
-	case "reinstall":
-		cmd.ReinstallCommand(subArgs)
-		return
-	case "uninstall":
-		cmd.UninstallCommand(subArgs)
-		return
-	case "version":
-		cmd.VersionCommand()
-		return
-	case "bump":
-		if newVersion, err := cmd.BumpVersion(); err != nil {
-			fmt.Printf("Version bump failed: %v\n", err)
-		} else {
-			fmt.Printf("New version: %s\n", newVersion)
-		}
-		return
-	case "help", "--help", "-h":
-		cmd.HelpCommand()
-		os.Exit(0)
 	}
 
+	// Continue with watch mode
 	opts := cmd.ParseOptions()
 	fmt.Println("Starting with options:", opts)
 
@@ -80,18 +63,23 @@ func main() {
 		}
 	}
 
-	// ✅ Use cmd.Spinner interface
-	spinner := cmd.NewSnakeSpinner(30, 5, 81)
-	spinner.Start()
+	sp := cmd.NewSnakeSpinner(30, 5, 81)
+	sp.Start()
+	go internal.WatchFiles(files, command, opts, sp)
 
-	// 🛠️ Run the watcher with spinner interface
-	go internal.WatchFiles(files, command, opts, spinner)
-
-	// Handle SIGINT / SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	spinner.Stop()
+	sp.Stop()
 	fmt.Println("\nShutting down gentr...")
+}
+
+func isBuiltinCommand(name string) bool {
+	switch name {
+	case "install", "uninstall", "reinstall", "version", "bump", "help", "--help", "-h":
+		return true
+	default:
+		return false
+	}
 }

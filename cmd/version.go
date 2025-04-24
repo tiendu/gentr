@@ -7,6 +7,13 @@ import (
     "strings"
 )
 
+var VersionStr = "0.3.0"
+var RevisionStr = "unknown"
+
+func VersionCommand() {
+	fmt.Printf("gentr version %s, build revision %s\n", VersionStr, RevisionStr)
+}
+
 // BumpVersion reads the current version from the VERSION file and dynamically bumps it:
 // - If version is in the format X.Y, it increments Y (minor version).
 // - If version is in the format X.Y.Z, it increments Z (patch version).
