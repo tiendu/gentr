@@ -168,13 +168,15 @@ type DotLineSpinner struct {
 	state      SpinnerState
 	frameTime  time.Duration
 	startColor int
+	length     int
 }
 
-func NewDotLineSpinner(frameTime time.Duration, startColor int) *DotLineSpinner {
+func NewDotLineSpinner(frameTime time.Duration, startColor int, length int) *DotLineSpinner {
 	return &DotLineSpinner{
 		state:      NewSpinnerState(),
 		frameTime:  frameTime,
 		startColor: startColor,
+		length:     length,
 	}
 }
 
@@ -186,7 +188,7 @@ func (s *DotLineSpinner) Resume() { s.state.Resume() }
 func (s *DotLineSpinner) run() {
 	const colorFormat = "\033[38;5;%dm%s\033[0m"
 	frames := []string{"·", "•", "●", "•", "·"}
-	gradient := generateGradient(s.startColor, 8)
+	gradient := generateGradient(s.startColor, s.length)
 
 	step := 0
 	paused := false
@@ -194,7 +196,7 @@ func (s *DotLineSpinner) run() {
 	for {
 		select {
 		case <-s.state.stopChan:
-			fmt.Print("\r" + strings.Repeat(" ", 32) + "\r")
+			fmt.Print("\r" + strings.Repeat(" ", s.length*4) + "\r")
 			return
 		case <-s.state.pauseChan:
 			paused = true
@@ -207,7 +209,7 @@ func (s *DotLineSpinner) run() {
 			}
 
 			var output []string
-			for i := 0; i < 8; i++ {
+			for i := 0; i < s.length; i++ {
 				ch := frames[(step+i)%len(frames)]
 				color := gradient[i]
 				output = append(output, fmt.Sprintf(colorFormat, color, ch))
