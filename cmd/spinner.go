@@ -169,14 +169,16 @@ type DotLineSpinner struct {
 	frameTime  time.Duration
 	startColor int
 	length     int
+	frames     []string
 }
 
-func NewDotLineSpinner(frameTime time.Duration, startColor int, length int) *DotLineSpinner {
+func NewDotLineSpinner(frameTime time.Duration, startColor int, length int, frames []string) *DotLineSpinner {
 	return &DotLineSpinner{
 		state:      NewSpinnerState(),
 		frameTime:  frameTime,
 		startColor: startColor,
 		length:     length,
+		frames:     frames,
 	}
 }
 
@@ -187,7 +189,9 @@ func (s *DotLineSpinner) Resume() { s.state.Resume() }
 
 func (s *DotLineSpinner) run() {
 	const colorFormat = "\033[38;5;%dm%s\033[0m"
-	frames := []string{"·", "•", "●", "•", "·"}
+	if len(s.frames) == 0 {
+		s.frames = []string{"·", "•", "◦", "○", "◎", "◉", "●", "◉", "◎", "○", "◦", "•", "·"}
+	}
 	gradient := generateGradient(s.startColor, s.length)
 
 	step := 0
@@ -210,10 +214,83 @@ func (s *DotLineSpinner) run() {
 
 			var output []string
 			for i := 0; i < s.length; i++ {
-				ch := frames[(step+i)%len(frames)]
+				ch := s.frames[(step+i)%len(s.frames)]
 				color := gradient[i]
 				output = append(output, fmt.Sprintf(colorFormat, color, ch))
 			}
+			fmt.Printf("\r%s", strings.Join(output, " "))
+			time.Sleep(s.frameTime)
+			step++
+		}
+	}
+}
+
+// ================================
+// RollingShapeSpinner Implementation
+// ================================
+
+type RollingShapeSpinner struct {
+	state      SpinnerState
+	frameTime  time.Duration
+	startColor int
+	length     int
+	shapes     []string
+}
+
+func NewRollingShapeSpinner(frameTime time.Duration, startColor int, length int, shapes []string) *RollingShapeSpinner {
+	return &RollingShapeSpinner{
+		state:      NewSpinnerState(),
+		frameTime:  frameTime,
+		startColor: startColor,
+		length:     length,
+		shapes:     shapes,
+	}
+}
+
+func (s *RollingShapeSpinner) Start()  { s.state.Start(s.run) }
+func (s *RollingShapeSpinner) Stop()   { s.state.Stop() }
+func (s *RollingShapeSpinner) Pause()  { s.state.Pause() }
+func (s *RollingShapeSpinner) Resume() { s.state.Resume() }
+
+func (s *RollingShapeSpinner) run() {
+	const colorFormat = "\033[38;5;%dm%s\033[0m"
+	if len(s.shapes) == 0 {
+		// s.shapes = []string{"→", "↘", "↓", "↙", "←", "↖", "↑", "↗"}
+		// s.shapes = []string{"░", "▒", "▓", "█", "▓", "▒", "░"}
+		s.shapes = []string{"▖", "▘", "▝", "▗"}
+		// s.shapes = []string{"◢", "◣", "◤", "◥"}
+		// s.shapes = []string{"◇", "◆", "◈", "◇"}
+		// s.shapes = []string{"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"}
+	}
+	gradient := generateGradient(s.startColor, s.length)
+
+	step := 0
+	paused := false
+
+	for {
+		select {
+		case <-s.state.stopChan:
+			fmt.Print("\r" + strings.Repeat(" ", s.length*2) + "\r")
+			return
+		case <-s.state.pauseChan:
+			paused = true
+		case <-s.state.resumeChan:
+			paused = false
+		default:
+			if paused {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			output := make([]string, s.length)
+			for i := range output {
+				output[i] = " "
+			}
+
+			pos := s.length - 1 - (step % s.length)                // move right to left
+			shape := s.shapes[step%len(s.shapes)]                 // rotating shape
+			output[pos] = fmt.Sprintf(colorFormat, gradient[pos], shape)
+
 			fmt.Printf("\r%s", strings.Join(output, " "))
 			time.Sleep(s.frameTime)
 			step++
