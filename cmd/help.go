@@ -9,7 +9,6 @@ func HelpCommand() int {
 Admin commands:
   install      Install this tool as a system command
   uninstall    Remove the installed tool
-  reinstall    Reinstall the tool
   version      Print version
   help         Show this message
 

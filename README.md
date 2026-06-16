@@ -81,7 +81,7 @@ This keeps the CLI easy to test and avoids tying the internal package to the com
 ├── cmd
 │   ├── flags.go      # CLI option parsing
 │   ├── help.go       # Help text
-│   ├── install.go    # install/uninstall/reinstall commands
+│   ├── install.go    # install/uninstall commands
 │   ├── router.go     # Small command router interface
 │   ├── spinner.go    # Spinner interface implementations
 │   └── version.go    # Version command
@@ -164,7 +164,6 @@ gentr --input testdir --recursive --log 'echo changed /_'
 gentr version
 gentr install
 gentr uninstall
-gentr reinstall
 gentr help
 ```
 

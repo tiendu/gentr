@@ -139,10 +139,16 @@ func (s *SnakeSpinner) run() {
 
 			for idx, pos := range snake {
 				if pos >= 0 && pos < s.width {
-					color := s.tailColors[idx]
-					if idx == s.snakeLength-1 {
+					color := s.startColor
+
+					if idx >= 0 && idx < len(s.tailColors) {
+						color = s.tailColors[idx]
+					}
+
+					if idx == s.snakeLength -1 {
 						color = s.startColor
 					}
+
 					line[pos] = fmt.Sprintf(colorFormat, color, block)
 				}
 			}
