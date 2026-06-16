@@ -7,8 +7,8 @@ import (
 	"strings"
 	"syscall"
 
-	"gentr/cmd"
-	"gentr/internal"
+	"github.com/tiendu/gentr/cmd"
+	"github.com/tiendu/gentr/internal"
 )
 
 func main() {

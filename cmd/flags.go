@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 type Options struct {

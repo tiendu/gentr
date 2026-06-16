@@ -2,7 +2,7 @@ package cmd
 
 import "fmt"
 
-var VersionStr = "0.3.0"
+var VersionStr = "0.4.0"
 var RevisionStr = "unknown"
 
 func VersionCommand() int {

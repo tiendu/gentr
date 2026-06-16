@@ -22,8 +22,6 @@ type CommandRouter struct {
 func NewCommandRouter() *CommandRouter {
 	r := &CommandRouter{commands: make(map[string]Command)}
 
-	r.Register("install", CommandFunc(InstallCommand))
-	r.Register("uninstall", CommandFunc(UninstallCommand))
 	r.Register("version", CommandFunc(func([]string) int { return VersionCommand() }))
 	r.Register("help", CommandFunc(func([]string) int { return HelpCommand() }))
 	r.Register("--help", CommandFunc(func([]string) int { return HelpCommand() }))

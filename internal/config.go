@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 type WatchOptions struct {

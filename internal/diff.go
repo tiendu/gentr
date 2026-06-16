@@ -3,7 +3,7 @@ package internal
 import (
 	"math"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 type DiffChange struct {

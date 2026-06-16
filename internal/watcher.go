@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 type Spinner interface {

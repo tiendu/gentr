@@ -17,7 +17,7 @@ func (c *recordingCommand) Run(args []string) int {
 func TestNewCommandRouterRegistersAdminCommands(t *testing.T) {
 	router := NewCommandRouter()
 
-	for _, name := range []string{"install", "uninstall", "version", "help", "--help", "-h"} {
+	for _, name := range []string{"version", "help", "--help", "-h"} {
 		if !router.Has(name) {
 			t.Fatalf("expected router to have command %q", name)
 		}

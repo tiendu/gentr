@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 func TestFormatStatusLogSuccess(t *testing.T) {

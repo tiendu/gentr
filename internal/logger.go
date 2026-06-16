@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"gentr/internal/utils"
+	"github.com/tiendu/gentr/internal/utils"
 )
 
 type OutputReporter interface {

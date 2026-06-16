@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gentr/internal"
+	"github.com/tiendu/gentr/internal"
 )
 
 type stubResolver struct {
