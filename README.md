@@ -14,7 +14,7 @@ Use `--input` to watch a file, directory, or glob pattern:
 gentr --input 'logs/*.log' cat /_
 ```
 
-You can also pipe file paths through standard input. When standard input is provided, it takes priority over `--input`:
+You can also pipe file paths through standard input. Piped input takes priority over `--input`:
 
 ```shell
 find testdir -type f | gentr cat /_
@@ -22,29 +22,19 @@ find testdir -type f | gentr cat /_
 
 ### Recursive watching
 
-Use `--recursive` to watch files inside subdirectories:
-
 ```shell
 gentr --input testdir --recursive cat /_
 ```
 
 ### Placeholder substitution
 
-Use `/_` inside the command to represent the changed file:
+Use `/_` to represent the changed file:
 
 ```shell
 gentr --input testdir --recursive 'echo changed /_'
 ```
 
-If `testdir/file1.txt` changes, gentr runs:
-
-```shell
-echo changed testdir/file1.txt
-```
-
 ### Structured output
-
-gentr prints raw command output followed by a status line:
 
 ```text
 exit|0|cat testdir/file1.txt
@@ -60,50 +50,43 @@ gentr listens for `SIGINT` and `SIGTERM` and shuts down cleanly.
 
 ## Design
 
-The code uses small Go interfaces and composition rather than inheritance-heavy structure.
-
-Core boundaries:
-
-- `Resolver` resolves files from an input path or glob.
-- `StdinReader` reads file paths from standard input.
-- `CommandRunner` executes the user command.
-- `OutputReporter` prints command output and status.
-- `ChangeLogger` writes optional session logs.
-- `Spinner` controls terminal activity display.
-- `Watcher` coordinates polling, debouncing, command execution, diff rendering, and logging.
-
-This keeps the CLI easy to test and avoids coupling the internal package to command-line parsing.
-
-Build, installation, removal, testing, and cleanup are handled by the `Makefile`. The gentr binary only contains application behavior.
-
-## Directory structure
+The project is split into small, cohesive internal packages. Each package keeps its tests beside the implementation it validates, following normal Go conventions.
 
 ```text
 .
-├── cmd
-│   ├── flags.go          # CLI option parsing
-│   ├── flags_test.go
-│   ├── help.go           # Help text
-│   ├── router.go         # Small command router
-│   ├── router_test.go
-│   ├── spinner.go        # Spinner interface implementations
-│   ├── spinner_test.go
-│   └── version.go        # Version command
 ├── internal
-│   ├── config.go         # WatchOptions
-│   ├── diff.go           # Line diff helpers
-│   ├── diff_test.go
-│   ├── executor.go       # CommandRunner interface and shell runner
-│   ├── executor_test.go
-│   ├── logger.go         # OutputReporter and ChangeLogger interfaces
-│   ├── logger_test.go
-│   ├── resolver.go       # Resolver and StdinReader interfaces
-│   ├── resolver_test.go
-│   ├── watcher.go        # Watcher orchestration
-│   ├── watcher_test.go
-│   └── utils
-│       ├── utils.go      # Terminal formatting helpers
-│       └── utils_test.go
+│   ├── app
+│   │   ├── app.go
+│   │   └── app_test.go
+│   ├── buildinfo
+│   │   └── buildinfo.go
+│   ├── cli
+│   │   ├── cli.go
+│   │   └── cli_test.go
+│   ├── config
+│   │   ├── options.go
+│   │   └── options_test.go
+│   ├── diff
+│   │   ├── diff.go
+│   │   └── diff_test.go
+│   ├── input
+│   │   ├── resolver.go
+│   │   └── resolver_test.go
+│   ├── output
+│   │   ├── output.go
+│   │   └── output_test.go
+│   ├── runner
+│   │   ├── runner.go
+│   │   └── runner_test.go
+│   ├── spinner
+│   │   ├── spinner.go
+│   │   └── spinner_test.go
+│   ├── terminal
+│   │   ├── terminal.go
+│   │   └── terminal_test.go
+│   └── watch
+│       ├── watcher.go
+│       └── watcher_test.go
 ├── .gitignore
 ├── go.mod
 ├── LICENSE
@@ -113,6 +96,17 @@ Build, installation, removal, testing, and cleanup are handled by the `Makefile`
 └── README.md
 ```
 
+Core boundaries are expressed as small interfaces where they are consumed:
+
+- `Resolver` discovers files from a path or glob.
+- `StdinReader` reads paths from standard input.
+- `CommandRunner` executes commands.
+- `OutputReporter` renders command output.
+- `ChangeLogger` stores optional session records.
+- `Spinner` controls terminal activity display.
+
+`main.go` only delegates to the application package. Build, test, install, uninstall, and cleanup are handled by the Makefile.
+
 ## Requirements
 
 - Go 1.23 or newer
@@ -120,177 +114,55 @@ Build, installation, removal, testing, and cleanup are handled by the `Makefile`
 
 ## Installation
 
-### Install with Make
-
-Clone the repository and install the binary to `~/.local/bin`:
-
 ```shell
 git clone https://github.com/tiendu/gentr.git
 cd gentr
 make install
 ```
 
-The default installation path is:
+The default destination is:
 
 ```text
 ~/.local/bin/gentr
 ```
 
-Make sure `~/.local/bin` is in your `PATH`.
-
-For zsh:
-
-```shell
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-For bash:
-
-```shell
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### Install to another location
-
-Set `PREFIX`:
+Custom destination:
 
 ```shell
 make install PREFIX=/usr/local
-```
-
-This installs the binary to:
-
-```text
-/usr/local/bin/gentr
-```
-
-You can also set the full binary directory directly:
-
-```shell
 make install BIN_DIR="$HOME/bin"
 ```
 
-### Install with Go
-
-You can install gentr directly with Go:
+Install through Go:
 
 ```shell
 go install github.com/tiendu/gentr@latest
 ```
 
-The binary is installed into `GOBIN`, or into `$(go env GOPATH)/bin` when `GOBIN` is not set.
-
-### Build without installing
-
-```shell
-make build
-```
-
-The binary is written to:
-
-```text
-build/gentr
-```
-
-Run it directly:
-
-```shell
-./build/gentr --input testdir --recursive cat /_
-```
-
 ## Development
-
-Run all validation checks:
 
 ```shell
 make check
-```
-
-Run tests:
-
-```shell
 make test
-```
-
-Run tests with the race detector:
-
-```shell
 make test-race
-```
-
-Run static analysis:
-
-```shell
-make vet
-```
-
-Format the source:
-
-```shell
-make fmt
-```
-
-Build the binary:
-
-```shell
 make build
-```
-
-Remove build and coverage output:
-
-```shell
 make clean
 ```
 
-Uninstall the binary:
+Uninstall:
 
 ```shell
 make uninstall
 ```
 
-To uninstall from a custom prefix, use the same value used during installation:
-
-```shell
-make uninstall PREFIX=/usr/local
-```
-
 ## Usage
-
-Watch a directory recursively and run `cat` on the changed file:
 
 ```shell
 gentr --input testdir --recursive cat /_
-```
-
-Use standard input:
-
-```shell
 find testdir -type f | gentr cat /_
-```
-
-Watch Go files and rerun tests:
-
-```shell
 gentr --input . --recursive go test ./...
-```
-
-Watch a glob pattern:
-
-```shell
 gentr --input '*.go' go test ./...
-```
-
-Limit command output lines:
-
-```shell
 gentr --input testdir --recursive --length 20 'pytest /_'
-```
-
-Enable logging:
-
-```shell
 gentr --input testdir --recursive --log 'echo changed /_'
 ```
 
@@ -299,13 +171,6 @@ gentr --input testdir --recursive --log 'echo changed /_'
 ```shell
 gentr version
 gentr help
-```
-
-Installation and removal are intentionally handled by the Makefile rather than the running binary:
-
-```shell
-make install
-make uninstall
 ```
 
 ## Options
